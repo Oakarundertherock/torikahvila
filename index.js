@@ -8,7 +8,10 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  EmbedBuilder
+  EmbedBuilder,
+  REST,
+  Routes,
+  SlashCommandBuilder
 } = require('discord.js');
 const { addPurchase, getUser } = require('./storage');
 
@@ -20,8 +23,34 @@ const OPEN_FORM_BUTTON_ID = 'open_form';
 const SHOW_PURCHASES_BUTTON_ID = 'show_purchases';
 const PURCHASE_MODAL_ID = 'purchase_form';
 
-client.once('ready', () => {
+// Registers the /setup command every time the bot starts up.
+// This means you never have to run a separate "deploy-commands" step
+// on hosts (like some Wispbyte eggs) that only let you run one fixed
+// start command.
+async function registerCommands() {
+  const commands = [
+    new SlashCommandBuilder()
+      .setName('setup')
+      .setDescription('Lähettää ostolomake-viestin tähän kanavaan (vaatii ylläpito-oikeudet)')
+      .setDefaultMemberPermissions(0)
+  ].map(c => c.toJSON());
+
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: commands }
+    );
+    console.log('Slash-komennot rekisteröity onnistuneesti!');
+  } catch (err) {
+    console.error('Slash-komentojen rekisteröinti epäonnistui:', err);
+  }
+}
+
+client.once('ready', async () => {
   console.log(`Kirjauduttu sisään käyttäjänä ${client.user.tag}`);
+  await registerCommands();
 });
 
 client.on('interactionCreate', async (interaction) => {

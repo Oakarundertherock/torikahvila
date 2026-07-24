@@ -35,16 +35,15 @@ LOG_CHANNEL_ID=kanavan_id
 
 **Älä koskaan** jaa `.env`-tiedostoa tai laita sitä GitHubiin — `.gitignore` jättää sen automaattisesti pois.
 
-## 3. Asenna riippuvuudet ja rekisteröi komento
+## 3. Asenna riippuvuudet
 
 Paikallisesti (tai Wispbyten konsolissa):
 
 ```bash
 npm install
-npm run deploy-commands
 ```
 
-Tämä rekisteröi `/setup`-komennon palvelimellesi. Tarvitsee ajaa vain kerran (tai uudelleen jos muutat komentoja).
+`/setup`-komento rekisteröidään **automaattisesti aina kun botti käynnistyy** (koodi tekee tämän itse `index.js`:ssä), joten erillistä `npm run deploy-commands`-vaihetta ei enää tarvitse ajaa käsin. (Tiedosto `deploy-commands.js` on silti mukana jos haluat joskus rekisteröidä komentoja erikseen ilman botin käynnistämistä.)
 
 ## 4. Aja botti
 
@@ -59,7 +58,7 @@ Kun botti on käynnissä, aja Discordissa haluamassasi kanavassa `/setup` — bo
 1. Luo Wispbytelle uusi **Node.js**-palvelu / sovellus.
 2. Lataa/pushaa tämän kansion tiedostot palveluun (esim. sen omalla Git-integraatiolla, tai lataamalla tiedostot suoraan paneelin kautta).
 3. Aseta Wispbyten paneelissa ympäristömuuttujat (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, `LOG_CHANNEL_ID`) — älä lataa `.env`-tiedostoa itse palveluun, käytä paneelin "Environment Variables" -osiota jos sellainen on tarjolla, tai lataa `.env` erikseen suoraan palvelimelle (ei GitHubiin).
-4. Aseta käynnistyskomennoksi `npm install && npm run deploy-commands && npm start` (tai aja `deploy-commands` kertaalleen erikseen ja käynnistyskomennoksi pelkkä `npm start`).
+4. Käynnistyskomentoa ei tarvitse muuttaa monimutkaiseksi — pelkkä `node index.js` (tai paneelin oma vakiokäynnistys, esim. Wispbyten `${JS_FILE}`-malli jossa `JS_FILE=index.js`) riittää, koska `/setup`-komento rekisteröityy automaattisesti joka käynnistyksellä.
 5. Varmista, että palvelu pysyy jatkuvasti käynnissä (Wispbyte pitää Node-prosessin päällä koko ajan — tämä on tärkeää, koska botti käyttää pysyvää yhteyttä Discordiin, ei kertaluontoisia web-pyyntöjä).
 
 ## 6. GitHubiin vieminen
