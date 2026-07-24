@@ -59,4 +59,20 @@ function getUser(userId) {
   return data.users[userId] || null;
 }
 
-module.exports = { addPurchase, getUser };
+// Admin override: directly set a user's all-time total to a specific value.
+// Does not touch their item history list.
+async function setTotal(userId, username, amount) {
+  const data = readData();
+
+  if (!data.users[userId]) {
+    data.users[userId] = { username, totalSpent: 0, items: [] };
+  }
+
+  data.users[userId].username = username;
+  data.users[userId].totalSpent = amount;
+
+  await writeData(data);
+  return data.users[userId];
+}
+
+module.exports = { addPurchase, getUser, setTotal };

@@ -81,3 +81,10 @@ Tämän jälkeen koodi on GitHubissa, ja voit jatkossa pushata muutokset normaal
 - Hintakenttä hyväksyy sekä pilkun että pisteen desimaalierottimena (esim. `4,50` tai `4.50`).
 - "Näytä omat ostoni" -lista katkaistaan, jos ostoshistoria kasvaa erittäin pitkäksi (Discordin viestirajoitusten takia).
 - `/setup` on oletuksena rajattu ylläpitäjille (voit muuttaa tätä palvelimen Asetukset -> Integraatiot -kohdasta).
+
+### Admin-komennot
+
+- **`/aseta-summa kayttaja:@Käyttäjä summa:42.50`** — asettaa kyseisen käyttäjän "Käytetty yhteensä" -summan suoraan haluttuun arvoon (ylikirjoittaa, ei vaikuta ostoshistoriaan). Vain Administrator-oikeuden omaavat näkevät/voivat käyttää tätä komentoa oletuksena.
+- **`/katso-summa kayttaja:@Käyttäjä`** — näyttää (vain komennon käyttäjälle) kyseisen käyttäjän kokonaissumman ja ostosten määrän ilman, että tarvitsee selata lokikanavaa läpi.
+
+Kummankin komennon näkyvyyttä voi säätää palvelimen Asetukset -> Integraatiot -kohdasta, jos haluat antaa oikeuden myös muille kuin Administrator-roolille.

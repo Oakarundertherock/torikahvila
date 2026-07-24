@@ -11,9 +11,10 @@ const {
   EmbedBuilder,
   REST,
   Routes,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  PermissionFlagsBits
 } = require('discord.js');
-const { addPurchase, getUser } = require('./storage');
+const { addPurchase, getUser, setTotal } = require('./storage');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -32,7 +33,28 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName('setup')
       .setDescription('Lähettää ostolomake-viestin tähän kanavaan (vaatii ylläpito-oikeudet)')
-      .setDefaultMemberPermissions(0)
+      .setDefaultMemberPermissions(0),
+    new SlashCommandBuilder()
+      .setName('aseta-summa')
+      .setDescription('(Admin) Aseta käyttäjän Käytetty yhteensä -summa suoraan')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .addUserOption(option =>
+        option.setName('kayttaja')
+          .setDescription('Käyttäjä jonka summa asetetaan')
+          .setRequired(true))
+      .addNumberOption(option =>
+        option.setName('summa')
+          .setDescription('Uusi Käytetty yhteensä -summa (esim. 42.50)')
+          .setRequired(true)
+          .setMinValue(0)),
+    new SlashCommandBuilder()
+      .setName('katso-summa')
+      .setDescription('(Admin) Näytä käyttäjän Käytetty yhteensä -summa')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .addUserOption(option =>
+        option.setName('kayttaja')
+          .setDescription('Käyttäjä jonka summa haetaan')
+          .setRequired(true))
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -76,6 +98,40 @@ client.on('interactionCreate', async (interaction) => {
       );
 
       await interaction.reply({ embeds: [embed], components: [row] });
+      return;
+    }
+
+    // /aseta-summa (admin) -> directly overwrite a user's all-time total
+    if (interaction.isChatInputCommand() && interaction.commandName === 'aseta-summa') {
+      const targetUser = interaction.options.getUser('kayttaja', true);
+      const amount = interaction.options.getNumber('summa', true);
+
+      const updated = await setTotal(targetUser.id, targetUser.username, amount);
+
+      await interaction.reply({
+        content: `Asetettu: **${targetUser.username}** — Käytetty yhteensä on nyt **${updated.totalSpent.toFixed(2)}€**.`,
+        ephemeral: true
+      });
+      return;
+    }
+
+    // /katso-summa (admin) -> look up a user's all-time total directly
+    if (interaction.isChatInputCommand() && interaction.commandName === 'katso-summa') {
+      const targetUser = interaction.options.getUser('kayttaja', true);
+      const user = getUser(targetUser.id);
+
+      if (!user) {
+        await interaction.reply({
+          content: `**${targetUser.username}** ei ole vielä täyttänyt lomaketta yhtään kertaa.`,
+          ephemeral: true
+        });
+        return;
+      }
+
+      await interaction.reply({
+        content: `**${targetUser.username}** — Käytetty yhteensä: **${user.totalSpent.toFixed(2)}€** (${user.items.length} ostosta kirjattu).`,
+        ephemeral: true
+      });
       return;
     }
 
