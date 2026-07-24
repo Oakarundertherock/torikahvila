@@ -15,6 +15,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 const { addPurchase, getUser, setTotal } = require('./storage');
+const { parseCost, formatMoney } = require('./utils');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -42,11 +43,10 @@ async function registerCommands() {
         option.setName('kayttaja')
           .setDescription('Käyttäjä jonka summa asetetaan')
           .setRequired(true))
-      .addNumberOption(option =>
+      .addStringOption(option =>
         option.setName('summa')
-          .setDescription('Uusi Käytetty yhteensä -summa (esim. 42.50)')
-          .setRequired(true)
-          .setMinValue(0)),
+          .setDescription('Uusi Käytetty yhteensä -summa (esim. 42.50 tai 45k)')
+          .setRequired(true)),
     new SlashCommandBuilder()
       .setName('katso-summa')
       .setDescription('(Admin) Näytä käyttäjän Käytetty yhteensä -summa')
@@ -104,12 +104,21 @@ client.on('interactionCreate', async (interaction) => {
     // /aseta-summa (admin) -> directly overwrite a user's all-time total
     if (interaction.isChatInputCommand() && interaction.commandName === 'aseta-summa') {
       const targetUser = interaction.options.getUser('kayttaja', true);
-      const amount = interaction.options.getNumber('summa', true);
+      const rawAmount = interaction.options.getString('summa', true);
+      const amount = parseCost(rawAmount);
+
+      if (amount === null) {
+        await interaction.reply({
+          content: 'Summa pitää olla kelvollinen luku, esim. 42.50 tai 45k.',
+          ephemeral: true
+        });
+        return;
+      }
 
       const updated = await setTotal(targetUser.id, targetUser.username, amount);
 
       await interaction.reply({
-        content: `Asetettu: **${targetUser.username}** — Käytetty yhteensä on nyt **${updated.totalSpent.toFixed(2)}€**.`,
+        content: `Asetettu: **${targetUser.username}** — Käytetty yhteensä on nyt **${formatMoney(updated.totalSpent)}**.`,
         ephemeral: true
       });
       return;
@@ -129,7 +138,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       await interaction.reply({
-        content: `**${targetUser.username}** — Käytetty yhteensä: **${user.totalSpent.toFixed(2)}€** (${user.items.length} ostosta kirjattu).`,
+        content: `**${targetUser.username}** — Käytetty yhteensä: **${formatMoney(user.totalSpent)}** (${user.items.length} ostosta kirjattu).`,
         ephemeral: true
       });
       return;
@@ -153,7 +162,7 @@ client.on('interactionCreate', async (interaction) => {
         .setCustomId('paljonko_makso')
         .setLabel('Paljonko Se Maksoi')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Esim. 4.50')
+        .setPlaceholder('Esim. 4.50 tai 45k')
         .setRequired(true)
         .setMaxLength(20);
 
@@ -179,7 +188,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       let list = user.items
-        .map((entry, i) => `${i + 1}. **${entry.item}** — ${entry.cost.toFixed(2)}€`)
+        .map((entry, i) => `${i + 1}. **${entry.item}** — ${formatMoney(entry.cost)}`)
         .join('\n');
 
       // Discord embed field values are capped at 1024 characters.
@@ -190,7 +199,7 @@ client.on('interactionCreate', async (interaction) => {
       const embed = new EmbedBuilder()
         .setTitle(`${interaction.user.username} - Ostohistoria`)
         .setDescription(list)
-        .addFields({ name: 'Yhteensä käytetty', value: `${user.totalSpent.toFixed(2)}€` })
+        .addFields({ name: 'Yhteensä käytetty', value: formatMoney(user.totalSpent) })
         .setColor(0x57F287);
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -202,13 +211,12 @@ client.on('interactionCreate', async (interaction) => {
       const item = interaction.fields.getTextInputValue('mita_ostit').trim();
       const rawCost = interaction.fields.getTextInputValue('paljonko_makso').trim();
 
-      // Accept both "4.50" and Finnish-style "4,50"
-      const normalizedCost = rawCost.replace(',', '.').replace(/[^0-9.]/g, '');
-      const cost = parseFloat(normalizedCost);
+      // Accepts "4.50", "4,50", "45k", "1.5k", etc.
+      const cost = parseCost(rawCost);
 
-      if (isNaN(cost) || cost < 0) {
+      if (cost === null) {
         await interaction.reply({
-          content: 'Hinta pitää olla kelvollinen luku, esim. 4.50. Yritä uudelleen.',
+          content: 'Hinta pitää olla kelvollinen luku, esim. 4.50 tai 45k. Yritä uudelleen.',
           ephemeral: true
         });
         return;
@@ -230,8 +238,8 @@ client.on('interactionCreate', async (interaction) => {
         })
         .addFields(
           { name: 'Mitä Ostit', value: item, inline: true },
-          { name: 'Paljonko Se Maksoi', value: `${cost.toFixed(2)}€`, inline: true },
-          { name: 'Käytetty yhteensä', value: `${updatedUser.totalSpent.toFixed(2)}€`, inline: true }
+          { name: 'Paljonko Se Maksoi', value: formatMoney(cost), inline: true },
+          { name: 'Käytetty yhteensä', value: formatMoney(updatedUser.totalSpent), inline: true }
         )
         .setColor(0xFEE75C)
         .setTimestamp();
@@ -239,7 +247,7 @@ client.on('interactionCreate', async (interaction) => {
       await logChannel.send({ embeds: [embed] });
 
       await interaction.reply({
-        content: `Kiitos! Tallennettu. Olet käyttänyt yhteensä ${updatedUser.totalSpent.toFixed(2)}€.`,
+        content: `Kiitos! Tallennettu. Olet käyttänyt yhteensä ${formatMoney(updatedUser.totalSpent)}.`,
         ephemeral: true
       });
       return;
